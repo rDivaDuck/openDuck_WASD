@@ -1,2 +1,2 @@
 # openDuck_WASD
-![openDuck WASD Layout Preview](./media/layout_preview.png)
+![openDuck WASD Layout Preview](./media/open_duck_WASD_layout.png)
