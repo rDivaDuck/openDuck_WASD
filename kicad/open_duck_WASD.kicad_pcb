@@ -12596,7 +12596,7 @@
 			)
 		)
 	)
-	(gr_text "BACK\n"
+	(gr_text "UP"
 		(at 113.6386 71.625 325)
 		(layer "F.SilkS")
 		(uuid "86b33958-d317-4b4c-baad-ab1bedea0c7b")
