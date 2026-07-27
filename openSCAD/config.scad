@@ -1,0 +1,126 @@
+
+pcb_height = 1.6;
+pcb_length = 163;
+pcb_width = 275;
+
+corner_radius = 10;
+box_length = pcb_length + 16;
+box_width = pcb_width + 16;
+
+// ==========================================
+// CENTRAL SWITCH MATRIX [X, Y, Rotation]
+// Centered relative to Board Edge.Cuts (From KiCad .pos)
+// ==========================================
+switch_positions = [
+    // Top Row (LS, RS, GUIDE, BACK, START, TURBO)
+    [-41.760,   61.975,  180.0], // MX1
+    [-60.810,   61.975,  180.0], // MX2
+    [-79.860,   61.975,  180.0], // MX3
+    [-98.910,   61.975,  180.0], // MX4
+    [-117.960,  61.975,  180.0], // MX5
+    [ 117.975,  61.975,  180.0], // MX6
+
+    // WASD Left Cluster
+    [-43.178,   13.031,  145.0], // MX7
+    [-69.710,    8.353,  145.0], // MX8
+    [-54.105,   -2.573,  145.0], // MX9
+    [-38.500,  -13.500,  145.0], // MX10
+
+    // Fightstick Right Cluster
+    [ 15.694,   10.501, -145.0], // MX11
+    [ 31.338,   36.104, -145.0], // MX12
+    [ 58.306,   47.963, -145.0], // MX13
+    [ 88.716,   49.906, -145.0], // MX14
+    [ 32.500,  -13.500, -145.0], // MX15
+    [ 48.144,   12.103, -145.0], // MX16
+    [ 75.112,   23.962, -145.0], // MX17
+    [105.522,   25.905, -145.0], // MX18
+
+    // Thumb Key
+    [ 38.500,  -54.500, -145.0]  // MX19
+];
+
+// Port Cutout Dimensions
+usb_width  = 10;  // Width of USB-C cable housing opening
+usb_height = 8;  // Height clearance for plug
+usb_wall_depth = 30;
+usb_x_pos  = 0;   // X-position matching your Pico's USB port offset
+usb_z_pos  = pcb_height / 2 + 2;   // Z-position matching your Pico's USB port offset
+usb_y_pos  = box_length / 2; // Aligns with the back wall boundary
+slot_radius = 2;
+// Reusable Cutout Tool
+module usb_cutout() {
+    // color("blue", alpha = 0.35)
+    translate([usb_x_pos, usb_y_pos, usb_z_pos])
+        rotate([90, 0, 0])
+        linear_extrude(height = usb_wall_depth, center = true) {
+            offset(r = slot_radius) {
+                square([usb_width - 2*slot_radius, usb_height - 2*slot_radius], center = true);
+            }
+        }
+}
+
+pico_length = 51;
+pico_width = 21;
+pico_height = 20;
+
+pico_x_pos = 0; 
+pico_y_pos = pcb_length / 2 -pico_length / 2;   
+pico_z_pos = pcb_height / 2 + pico_height / 2; 
+module pico_cutout() {
+        color("blue", alpha = 0.35)
+        translate([pico_x_pos, pico_y_pos, pico_z_pos])
+        cube([pico_width, pico_length, pico_height], center = true);
+}
+
+// 1. Standard MX Switch Cutout (14mm x 14mm + plate snap clips)
+module shape_mx_switch() {
+    square([14, 14], center = true);
+    
+    // Optional: MX side-latch notches for 1.5mm switch plates
+    // square([15.6, 5], center = true); 
+}
+
+// 2. Keycap Clearance Box (18mm x 18mm with rounded corners)
+module shape_keycap_clearance() {
+    offset(r = 1.5)
+        square([18 - 3, 18 - 3], center = true);
+}
+
+// 3. Fightstick Plunger / Button Circle (e.g., 24.2mm or 30.2mm)
+module shape_fightstick_circle(d = 24.2) {
+    circle(d = d);
+}
+
+// Pure 2D Crosshair Shape (Matches other 2D profiles)
+// 30mm long lines so they stick out far past the 14mm cutout
+module shape_crosshair() {
+    rotate([0, 0, 45])  square([30, 0.4], center = true);
+    rotate([0, 0, -45]) square([30, 0.4], center = true);
+}
+
+module generate_switch_cutouts(shape_type = "MX", cut_depth = 50) {
+    linear_extrude(height = cut_depth, center = true) {
+        for (p = switch_positions) {
+            translate([p[0], p[1]])
+                rotate([0, 0, p[2]]) {
+                    if (shape_type == "MX") {
+                        shape_mx_switch();
+                    } 
+                    else if (shape_type == "MX_CHECK") {
+                        shape_mx_switch();
+                        shape_crosshair(); // Pure 2D shape here
+                    }
+                    else if (shape_type == "KEYCAP") {
+                        shape_keycap_clearance();
+                    } 
+                    else if (shape_type == "CIRCLE_24") {
+                        shape_fightstick_circle(d = 24.2);
+                    }
+                    else if (shape_type == "CIRCLE_30") {
+                        shape_fightstick_circle(d = 30.2);
+                    }
+                }
+        }
+    }
+}
