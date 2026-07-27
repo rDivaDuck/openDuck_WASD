@@ -1,18 +1,15 @@
 include <config.scad> // Pulls in box_x, box_y, etc.
 
-plate_height = 3;
-lip = 30;
 
 // Show the KiCad PCB assembly in 3D
-color([0.2, 0.5, 0.3], alpha = 0.1)
-translate([0, 0, 20])
+color("green", alpha = 1)
 import("open_duck_WASD.stl", convexity = 10);
 
-$fn=200;
-
-translate([0, 0, plate_height/2])
-    minkowski()
-        {
-          cube([box_width,box_length,plate_height], center=true);
-          cylinder(r=corner_radius,h=plate_height, center=true);
-        }
+bottom_plate();
+module bottom_plate() {
+    difference() {
+        translate([0, 0, -lip_plate_height - bottom_plate_height])
+            case_shape(height = bottom_plate_height);
+        usb_cutout();
+    }
+}

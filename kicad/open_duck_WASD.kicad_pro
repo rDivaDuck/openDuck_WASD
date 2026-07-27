@@ -488,9 +488,9 @@
       "idf": "",
       "netlist": "",
       "plot": "",
-      "pos_files": "",
+      "pos_files": "../../../../Desktop/",
       "specctra_dsn": "",
-      "step": "open_duck_WASD.step",
+      "step": "open_duck_WASD.stl",
       "svg": "",
       "vrml": ""
     },

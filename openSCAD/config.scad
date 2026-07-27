@@ -3,6 +3,13 @@ pcb_height = 1.6;
 pcb_length = 163;
 pcb_width = 275;
 
+bottom_plate_height = 3;
+lip_plate_height = 2;
+mid_plate_height = pcb_height;
+switch_plate_height = 4.8;
+top_plate_height = 4.8;
+
+
 corner_radius = 10;
 box_length = pcb_length + 16;
 box_width = pcb_width + 16;
@@ -18,6 +25,7 @@ switch_positions = [
     [-79.860,   61.975,  180.0], // MX3
     [-98.910,   61.975,  180.0], // MX4
     [-117.960,  61.975,  180.0], // MX5
+
     [ 117.975,  61.975,  180.0], // MX6
 
     // WASD Left Cluster
@@ -40,12 +48,30 @@ switch_positions = [
     [ 38.500,  -54.500, -145.0]  // MX19
 ];
 
+// ==========================================
+// KEY INDEX GROUPS (0-based matching switch_positions)
+// ==========================================
+idx_top_row    = [0:5];   // MX1 - MX6
+idx_wasd       = [6:9];   // MX7 - MX10
+idx_fightstick = [10:17]; // MX11 - MX18
+idx_thumb      = [18];    // MX19
+
+idx_mx_keys     = [0:9];   // Top Row + WASD
+idx_circle_keys = [10:18]; // Fightstick + Thumb
+
+module case_shape(width = box_width, length = box_length, height = 5, corner_radius = corner_radius) {
+  linear_extrude(height = height) {
+        offset(r = corner_radius)
+            square([width - 2*corner_radius, length - 2*corner_radius], center = true);
+    }
+}
+
 // Port Cutout Dimensions
 usb_width  = 10;  // Width of USB-C cable housing opening
-usb_height = 8;  // Height clearance for plug
+usb_height = 7;  // Height clearance for plug
 usb_wall_depth = 30;
 usb_x_pos  = 0;   // X-position matching your Pico's USB port offset
-usb_z_pos  = pcb_height / 2 + 2;   // Z-position matching your Pico's USB port offset
+usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port offset
 usb_y_pos  = box_length / 2; // Aligns with the back wall boundary
 slot_radius = 2;
 // Reusable Cutout Tool
@@ -60,8 +86,8 @@ module usb_cutout() {
         }
 }
 
-pico_length = 51;
-pico_width = 21;
+pico_length = 52;
+pico_width = 22;
 pico_height = 20;
 
 pico_x_pos = 0; 
@@ -75,16 +101,15 @@ module pico_cutout() {
 
 // 1. Standard MX Switch Cutout (14mm x 14mm + plate snap clips)
 module shape_mx_switch() {
-    square([14, 14], center = true);
+    square([14.05, 14.05], center = true);
     
     // Optional: MX side-latch notches for 1.5mm switch plates
-    // square([15.6, 5], center = true); 
+    square([15.6, 5], center = true); 
 }
 
-// 2. Keycap Clearance Box (18mm x 18mm with rounded corners)
+// 2. Keycap Clearance Box
 module shape_keycap_clearance() {
-    offset(r = 1.5)
-        square([18 - 3, 18 - 3], center = true);
+    square([20.05, 20.05], center = true);
 }
 
 // 3. Fightstick Plunger / Button Circle (e.g., 24.2mm or 30.2mm)
@@ -99,18 +124,22 @@ module shape_crosshair() {
     rotate([0, 0, -45]) square([30, 0.4], center = true);
 }
 
-module generate_switch_cutouts(shape_type = "MX", cut_depth = 50) {
+// ==========================================
+// SWITCH CUTOUT GENERATOR
+// Pass 'indices' to cut specific keys, or leave 'undef' for all keys
+// ==========================================
+module generate_switch_cutouts(shape_type = "MX", cut_depth = 50, indices = undef) {
+    // If no indices specified, default to ALL keys (0 to 18)
+    active_indices = (indices == undef) ? [0 : len(switch_positions) - 1] : indices;
+
     linear_extrude(height = cut_depth, center = true) {
-        for (p = switch_positions) {
+        for (i = active_indices) {
+            p = switch_positions[i];
             translate([p[0], p[1]])
                 rotate([0, 0, p[2]]) {
                     if (shape_type == "MX") {
                         shape_mx_switch();
                     } 
-                    else if (shape_type == "MX_CHECK") {
-                        shape_mx_switch();
-                        shape_crosshair(); // Pure 2D shape here
-                    }
                     else if (shape_type == "KEYCAP") {
                         shape_keycap_clearance();
                     } 
