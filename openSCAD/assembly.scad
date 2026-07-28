@@ -8,29 +8,50 @@ use <bottom_plate.scad>
 
 // Set to 0 for normal assembly, or increase (e.g., 15 or 20) to explode the view
 explode = 40; 
-opacity = 0.8;
+opacity = 0.35;
 
 // Base imported PCB
-color("green", alpha = 1)
+color("green", opacity)    
 import("open_duck_WASD.stl", convexity = 10);
 
-// Stack and align layers along the Z-axis
-color("gray", opacity)
-translate([0, 0, -2 * explode])
-    bottom_plate();
+total_layers = 5;
 
-color("skyblue", opacity)
-translate([0, 0, -1 * explode])
-    lip_plate();
+// Hue automatically sweeps from Blue (240°) up to Warm Red/Orange (20°)
+color(dark3_color(0, total_layers), opacity) 
+    translate([0, 0, -2 * explode]) 
+        bottom_plate();
+color(dark3_color(1, total_layers), opacity) 
+    translate([0, 0, -1 * explode]) 
+        lip_plate();
+color(dark3_color(2, total_layers), opacity) 
+    translate([0, 0,  0 * explode]) 
+        mid_plate();
+color(dark3_color(3, total_layers), opacity) 
+    translate([0, 0,  1 * explode]) 
+            switch_plate();
+color(dark3_color(4, total_layers), opacity) 
+    translate([0, 0,  2 * explode]) 
+        top_plate();
 
-color("orange", opacity)
-translate([0, 0, 0 * explode])
-    mid_plate();
+function dark3_color(i, total) = 
+    let(
+        start_hue = 230,
+        hue = (start_hue + (i * (360 / total))) % 360
+    )
+    hsl_to_rgb(hue, 0.55, 0.45);
 
-color("pink", opacity)
-translate([0, 0, 1 * explode])
-    switch_plate();
-
-color("gray", opacity)
-translate([0, 0, 2 * explode])
-    top_plate();
+// HSL to RGB Helper Function
+function hsl_to_rgb(h, s, l) = 
+    let(
+        c = (1 - abs(2 * l - 1)) * s,
+        hp = ((h % 360) + 360) % 360 / 60,
+        x = c * (1 - abs((hp % 2) - 1)),
+        m = l - c / 2,
+        rgb_base = hp < 1 ? [c, x, 0] :
+                   hp < 2 ? [x, c, 0] :
+                   hp < 3 ? [0, c, x] :
+                   hp < 4 ? [0, x, c] :
+                   hp < 5 ? [x, 0, c] :
+                            [c, 0, x]
+    )
+    [rgb_base[0] + m, rgb_base[1] + m, rgb_base[2] + m];

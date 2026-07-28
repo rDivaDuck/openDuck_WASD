@@ -21,6 +21,6 @@ module top_plate() {
 
         // 3. Hardware Openings
         usb_cutout();
-        chicago_bolt_punch();
+       # chicago_bolt_cutout();
     }
 }

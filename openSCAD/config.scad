@@ -3,16 +3,16 @@ pcb_height = 1.6;
 pcb_length = 163;
 pcb_width = 275;
 
-bottom_plate_height = 3;
+bottom_plate_height = 4.3;
 lip_plate_height = 2;
 mid_plate_height = pcb_height;
 switch_plate_height = 4.8;
 top_plate_height = 8.7;
 
 corner_radius = 10;
-lip = 16;
-box_length = pcb_length + lip;
-box_width = pcb_width + lip;
+lip = 12;
+box_length = pcb_length + 2 * lip;
+box_width = pcb_width + 2 * lip;
 
 module case_shape(width = box_width, length = box_length, height = 5, r = corner_radius) {
   linear_extrude(height = height) {
@@ -36,8 +36,8 @@ module hollow_case_shape(outer_size, inner_size, height, r = corner_radius) {
 }
 
 // Port Cutout Dimensions
-usb_width  = 10;  // Width of USB-C cable housing opening
-usb_height = 6.5;  // Height clearance for plug
+usb_width  = 11 + 2;  // Width of USB-C cable housing opening
+usb_height = 6.5 + 2;  // Height clearance for plug
 usb_wall_depth = lip;
 usb_x_pos  = 0;   // X-position matching your Pico's USB port offset
 usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port offset
@@ -46,7 +46,7 @@ slot_radius = 2;
 // Reusable Cutout Tool
 module usb_cutout() {
     color("blue", alpha = 0.35)
-    translate([usb_x_pos, usb_y_pos + usb_wall_depth - 2, usb_z_pos])
+    translate([usb_x_pos, usb_y_pos + usb_wall_depth, usb_z_pos])
         rotate([90, 0, 0])
         linear_extrude(height = usb_wall_depth) {
             offset(r = slot_radius) {
@@ -55,15 +55,15 @@ module usb_cutout() {
         }
 }
 
-pico_length = 52;
-pico_width = 22;
+pico_length = 53;
+pico_width = 24;
 pico_height = 20;
 
 pico_x_pos = 0; 
 pico_y_pos = pcb_length / 2 -pico_length / 2;   
 pico_z_pos = pcb_height / 2 + pico_height / 2; 
 module pico_cutout() {
-        color("blue", alpha = 0.35)
+        // color("blue", alpha = 0.35)
         translate([pico_x_pos, pico_y_pos, pico_z_pos])
         cube([pico_width, pico_length, pico_height], center = true);
 }
@@ -169,39 +169,48 @@ module generate_switch_cutouts(shape_type = "MX", cut_depth = 50, indices = unde
 }
 
 // Chicago Bolt Specs (e.g. M3 barrel with 8mm head)
-chicago_head_d  = 8.3;   // Head diameter (+ clearance)
-chicago_head_h  = 1.5;   // Head inset depth
-chicago_shaft_d = 5.3;   // Barrel/shaft diameter (+ clearance)
+chicago_head_d  = 9.35 + 0.15;   // Head diameter (+ clearance)
+chicago_head_h  = 1.5 + 0.2;   // Head inset depth
+chicago_shaft_d = 5 + 0.3;   // Barrel/shaft diameter (+ clearance)
+chicago_shaft_h = 18;   // Barrel/shaft diameter (+ clearance)
 
 // Calculate total stack height relative to Z = 0 (bottom of bottom_plate)
 // Stack order from bottom to top: bottom + lip + mid + switch + top
 total_stack_h = bottom_plate_height + lip_plate_height + mid_plate_height + switch_plate_height + top_plate_height;
 
 // Bolt Hole Layout Positions
-hole_offset_x = (box_width / 2) - 7;
-hole_offset_y = (box_length / 2) - 7;
+hole_inset = 8;
+hole_offset_x  = (box_width / 2) - hole_inset;
+hole_offset_y  = (box_length / 2) - hole_inset;
 
-module bolt_positions() {
-    for (x = [-hole_offset_x, hole_offset_x]) {
+// Distance from center (0,0) to the inner seam bolt holes
+inner_offset_x = 18; 
+
+module bolt_positions(include_inner = true) {
+    // Collect all X coordinates needed
+    x_coords = include_inner 
+        ? [-hole_offset_x, -inner_offset_x, inner_offset_x, hole_offset_x]
+        : [-hole_offset_x, hole_offset_x];
+
+    for (x = x_coords) {
         for (y = [-hole_offset_y, hole_offset_y]) {
             translate([x, y, 0]) children();
         }
     }
 }
 
-module chicago_bolt_punch() {
-    translate([0, 0, -6])
+module chicago_bolt_cutout() {
+    translate([0, 0, -4.6])
     bolt_positions() {
         // 1. Bottom Head Counterbore (recessed into bottom_plate)
-        translate([0, 0, -1])
-            cylinder(d = chicago_head_d, h = chicago_head_h + 1, $fn = 32);
+        translate([0, 0, -chicago_head_h])
+            cylinder(d = chicago_head_d, h = chicago_head_h, $fn = 200);
             
         // 2. Middle Shaft Clearance Hole (punches straight through everything)
-        translate([0, 0, -1])
-            cylinder(d = chicago_shaft_d, h = total_stack_h + 2, $fn = 32);
+        cylinder(d = chicago_shaft_d, h = chicago_shaft_h, $fn = 200);
             
         // 3. Top Head Counterbore (recessed into top_plate)
-        translate([0, 0, total_stack_h - chicago_head_h])
-            cylinder(d = chicago_head_d, h = chicago_head_h + 1, $fn = 32);
+        translate([0, 0, chicago_shaft_h])
+            cylinder(d = chicago_head_d, h = chicago_head_h, $fn = 200);
     }
 }

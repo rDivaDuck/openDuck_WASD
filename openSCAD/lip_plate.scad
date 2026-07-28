@@ -17,6 +17,6 @@ module lip_plate() {
             r          = corner_radius
         );
         usb_cutout();
-        chicago_bolt_punch();
+        chicago_bolt_cutout();
     }
 }

@@ -15,8 +15,7 @@ module mid_plate() {
             height     = mid_plate_height,
             r          = corner_radius
         );
-        // THE SHARED USB CUTOUT PUNCH
         usb_cutout();
-        chicago_bolt_punch();
+        chicago_bolt_cutout();
     }
 }
