@@ -7,7 +7,7 @@ use <mid_plate.scad>
 use <bottom_plate.scad>
 
 // Set to 0 for normal assembly, or increase (e.g., 15 or 20) to explode the view
-explode = 0; 
+explode = 40; 
 opacity = 0.8;
 
 // Base imported PCB

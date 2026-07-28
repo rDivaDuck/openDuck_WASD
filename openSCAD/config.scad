@@ -1,4 +1,4 @@
-
+$fn=200;
 pcb_height = 1.6;
 pcb_length = 163;
 pcb_width = 275;
@@ -7,12 +7,66 @@ bottom_plate_height = 3;
 lip_plate_height = 2;
 mid_plate_height = pcb_height;
 switch_plate_height = 4.8;
-top_plate_height = 4.8;
-
+top_plate_height = 8.7;
 
 corner_radius = 10;
-box_length = pcb_length + 16;
-box_width = pcb_width + 16;
+lip = 16;
+box_length = pcb_length + lip;
+box_width = pcb_width + lip;
+
+module case_shape(width = box_width, length = box_length, height = 5, r = corner_radius) {
+  linear_extrude(height = height) {
+        offset(r = r)
+            square([width - 2*r, length - 2*r], center = true);
+    }
+}
+
+module hollow_case_shape(outer_size, inner_size, height, r = corner_radius) {
+    linear_extrude(height = height) {
+        difference() {
+            // Outer boundary
+            offset(r = r) 
+                square([outer_size[0] - 2*r, outer_size[1] - 2*r], center = true);
+            
+            // Inner wall boundary
+            offset(r = r)
+                square([inner_size[0] - 2*r, inner_size[1] - 2*r], center = true);
+        }
+    }
+}
+
+// Port Cutout Dimensions
+usb_width  = 10;  // Width of USB-C cable housing opening
+usb_height = 6.5;  // Height clearance for plug
+usb_wall_depth = lip;
+usb_x_pos  = 0;   // X-position matching your Pico's USB port offset
+usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port offset
+usb_y_pos  = pcb_length / 2; // Aligns with the back wall boundary
+slot_radius = 2;
+// Reusable Cutout Tool
+module usb_cutout() {
+    color("blue", alpha = 0.35)
+    translate([usb_x_pos, usb_y_pos + usb_wall_depth - 2, usb_z_pos])
+        rotate([90, 0, 0])
+        linear_extrude(height = usb_wall_depth) {
+            offset(r = slot_radius) {
+                square([usb_width - 2*slot_radius, usb_height - 2*slot_radius], center = true);
+            }
+        }
+}
+
+pico_length = 52;
+pico_width = 22;
+pico_height = 20;
+
+pico_x_pos = 0; 
+pico_y_pos = pcb_length / 2 -pico_length / 2;   
+pico_z_pos = pcb_height / 2 + pico_height / 2; 
+module pico_cutout() {
+        color("blue", alpha = 0.35)
+        translate([pico_x_pos, pico_y_pos, pico_z_pos])
+        cube([pico_width, pico_length, pico_height], center = true);
+}
 
 // ==========================================
 // CENTRAL SWITCH MATRIX [X, Y, Rotation]
@@ -59,46 +113,6 @@ idx_thumb      = [18];    // MX19
 idx_mx_keys     = [0:9];   // Top Row + WASD
 idx_circle_keys = [10:18]; // Fightstick + Thumb
 
-module case_shape(width = box_width, length = box_length, height = 5, corner_radius = corner_radius) {
-  linear_extrude(height = height) {
-        offset(r = corner_radius)
-            square([width - 2*corner_radius, length - 2*corner_radius], center = true);
-    }
-}
-
-// Port Cutout Dimensions
-usb_width  = 10;  // Width of USB-C cable housing opening
-usb_height = 7;  // Height clearance for plug
-usb_wall_depth = 30;
-usb_x_pos  = 0;   // X-position matching your Pico's USB port offset
-usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port offset
-usb_y_pos  = box_length / 2; // Aligns with the back wall boundary
-slot_radius = 2;
-// Reusable Cutout Tool
-module usb_cutout() {
-    // color("blue", alpha = 0.35)
-    translate([usb_x_pos, usb_y_pos, usb_z_pos])
-        rotate([90, 0, 0])
-        linear_extrude(height = usb_wall_depth, center = true) {
-            offset(r = slot_radius) {
-                square([usb_width - 2*slot_radius, usb_height - 2*slot_radius], center = true);
-            }
-        }
-}
-
-pico_length = 52;
-pico_width = 22;
-pico_height = 20;
-
-pico_x_pos = 0; 
-pico_y_pos = pcb_length / 2 -pico_length / 2;   
-pico_z_pos = pcb_height / 2 + pico_height / 2; 
-module pico_cutout() {
-        color("blue", alpha = 0.35)
-        translate([pico_x_pos, pico_y_pos, pico_z_pos])
-        cube([pico_width, pico_length, pico_height], center = true);
-}
-
 // 1. Standard MX Switch Cutout (14mm x 14mm + plate snap clips)
 module shape_mx_switch() {
     square([14.05, 14.05], center = true);
@@ -109,12 +123,12 @@ module shape_mx_switch() {
 
 // 2. Keycap Clearance Box
 module shape_keycap_clearance() {
-    square([20.05, 20.05], center = true);
+    square([19.15, 19.15], center = true);
 }
 
 // 3. Fightstick Plunger / Button Circle (e.g., 24.2mm or 30.2mm)
-module shape_fightstick_circle(d = 24.2) {
-    circle(d = d);
+module shape_fightstick_circle(r = 13.4) {
+    circle(r = r);
 }
 
 // Pure 2D Crosshair Shape (Matches other 2D profiles)
@@ -132,7 +146,7 @@ module generate_switch_cutouts(shape_type = "MX", cut_depth = 50, indices = unde
     // If no indices specified, default to ALL keys (0 to 18)
     active_indices = (indices == undef) ? [0 : len(switch_positions) - 1] : indices;
 
-    linear_extrude(height = cut_depth, center = true) {
+    linear_extrude(height = cut_depth) {
         for (i = active_indices) {
             p = switch_positions[i];
             translate([p[0], p[1]])
@@ -144,12 +158,50 @@ module generate_switch_cutouts(shape_type = "MX", cut_depth = 50, indices = unde
                         shape_keycap_clearance();
                     } 
                     else if (shape_type == "CIRCLE_24") {
-                        shape_fightstick_circle(d = 24.2);
+                        shape_fightstick_circle();
                     }
                     else if (shape_type == "CIRCLE_30") {
                         shape_fightstick_circle(d = 30.2);
                     }
                 }
         }
+    }
+}
+
+// Chicago Bolt Specs (e.g. M3 barrel with 8mm head)
+chicago_head_d  = 8.3;   // Head diameter (+ clearance)
+chicago_head_h  = 1.5;   // Head inset depth
+chicago_shaft_d = 5.3;   // Barrel/shaft diameter (+ clearance)
+
+// Calculate total stack height relative to Z = 0 (bottom of bottom_plate)
+// Stack order from bottom to top: bottom + lip + mid + switch + top
+total_stack_h = bottom_plate_height + lip_plate_height + mid_plate_height + switch_plate_height + top_plate_height;
+
+// Bolt Hole Layout Positions
+hole_offset_x = (box_width / 2) - 7;
+hole_offset_y = (box_length / 2) - 7;
+
+module bolt_positions() {
+    for (x = [-hole_offset_x, hole_offset_x]) {
+        for (y = [-hole_offset_y, hole_offset_y]) {
+            translate([x, y, 0]) children();
+        }
+    }
+}
+
+module chicago_bolt_punch() {
+    translate([0, 0, -6])
+    bolt_positions() {
+        // 1. Bottom Head Counterbore (recessed into bottom_plate)
+        translate([0, 0, -1])
+            cylinder(d = chicago_head_d, h = chicago_head_h + 1, $fn = 32);
+            
+        // 2. Middle Shaft Clearance Hole (punches straight through everything)
+        translate([0, 0, -1])
+            cylinder(d = chicago_shaft_d, h = total_stack_h + 2, $fn = 32);
+            
+        // 3. Top Head Counterbore (recessed into top_plate)
+        translate([0, 0, total_stack_h - chicago_head_h])
+            cylinder(d = chicago_head_d, h = chicago_head_h + 1, $fn = 32);
     }
 }

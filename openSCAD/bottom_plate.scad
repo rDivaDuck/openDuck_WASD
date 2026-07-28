@@ -11,5 +11,6 @@ module bottom_plate() {
         translate([0, 0, -lip_plate_height - bottom_plate_height])
             case_shape(height = bottom_plate_height);
         usb_cutout();
+        chicago_bolt_punch();
     }
 }

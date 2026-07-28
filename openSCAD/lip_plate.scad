@@ -1,6 +1,6 @@
 include <config.scad> // Pulls in box_x, box_y, etc.
 
-lip = 10;
+inner_lip = 10;
 
 // Show the KiCad PCB assembly in 3D
 color("green", alpha = 1)
@@ -10,17 +10,13 @@ lip_plate();
 module lip_plate() {
     difference() {
         translate([0, 0, -lip_plate_height])
-        linear_extrude(height = lip_plate_height) {
-            difference() {
-                // Outer boundary (ends up EXACTLY pcb_width x pcb_length)
-                offset(r = corner_radius)
-                    square([box_width - 2*corner_radius, box_length - 2*corner_radius], center = true);
-
-                // Inner wall boundary
-                offset(r = corner_radius)
-                    square([pcb_width - lip - 2*corner_radius, pcb_length - lip - 2*corner_radius], center = true);
-            }
-        }
+        hollow_case_shape(
+            outer_size = [box_width, box_length],
+            inner_size = [pcb_width - inner_lip, pcb_length - inner_lip],
+            height     = lip_plate_height,
+            r          = corner_radius
+        );
         usb_cutout();
+        chicago_bolt_punch();
     }
 }
