@@ -7,8 +7,8 @@ use <mid_plate.scad>
 use <bottom_plate.scad>
 
 // Set to 0 for normal assembly, or increase (e.g., 15 or 20) to explode the view
-explode = 40; 
-opacity = 0.35;
+explode = 0; 
+opacity = 0.65;
 
 // Base imported PCB
 color("green", opacity)    
@@ -16,7 +16,6 @@ import("open_duck_WASD.stl", convexity = 10);
 
 total_layers = 5;
 
-// Hue automatically sweeps from Blue (240°) up to Warm Red/Orange (20°)
 color(dark3_color(0, total_layers), opacity) 
     translate([0, 0, -2 * explode]) 
         bottom_plate();
@@ -35,7 +34,7 @@ color(dark3_color(4, total_layers), opacity)
 
 function dark3_color(i, total) = 
     let(
-        start_hue = 230,
+        start_hue = 240,
         hue = (start_hue + (i * (360 / total))) % 360
     )
     hsl_to_rgb(hue, 0.55, 0.45);

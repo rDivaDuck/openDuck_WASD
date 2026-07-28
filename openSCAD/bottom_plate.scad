@@ -9,7 +9,7 @@ bottom_plate();
 module bottom_plate() {
     difference() {
         translate([0, 0, -lip_plate_height - bottom_plate_height])
-            case_shape(height = bottom_plate_height);
+            case_shape(height = bottom_plate_height, bot_chamfer = 1);
         usb_cutout();
         chicago_bolt_cutout();
     }

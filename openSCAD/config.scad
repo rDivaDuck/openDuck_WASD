@@ -1,3 +1,6 @@
+include <BOSL2/std.scad>
+include <BOSL2/rounding.scad>
+
 $fn=200;
 pcb_height = 1.6;
 pcb_length = 163;
@@ -14,43 +17,80 @@ lip = 12;
 box_length = pcb_length + 2 * lip;
 box_width = pcb_width + 2 * lip;
 
-module case_shape(width = box_width, length = box_length, height = 5, r = corner_radius) {
-  linear_extrude(height = height) {
-        offset(r = r)
-            square([width - 2*r, length - 2*r], center = true);
-    }
+// Solid Case
+module case_shape(
+    size        = [box_width, box_length],
+    height      = top_plate_height,
+    r           = corner_radius,
+    top_chamfer = 0,
+    bot_chamfer = 0
+) {
+    offset_sweep(
+        rect(size, rounding = r),
+        height = height,
+        top    = top_chamfer > 0 ? os_chamfer(width = top_chamfer) : undef,
+        bottom = bot_chamfer > 0 ? os_chamfer(width = bot_chamfer) : undef
+    );
 }
 
-module hollow_case_shape(outer_size, inner_size, height, r = corner_radius) {
-    linear_extrude(height = height) {
-        difference() {
-            // Outer boundary
-            offset(r = r) 
-                square([outer_size[0] - 2*r, outer_size[1] - 2*r], center = true);
-            
-            // Inner wall boundary
-            offset(r = r)
-                square([inner_size[0] - 2*r, inner_size[1] - 2*r], center = true);
-        }
-    }
+// Hollow Frame
+module hollow_case_shape(
+    outer_size  = [box_width, box_length],
+    inner_size  = [pcb_width - inner_lip, pcb_length - inner_lip],
+    height      = lip_plate_height,
+    r           = corner_radius,
+    top_chamfer = 0,
+    bot_chamfer = 0
+) {
+    outer = rect(outer_size, rounding = r);
+    inner = rect(inner_size, rounding = r);
+
+    offset_sweep(
+        difference(outer, inner),
+        height = height,
+        top    = top_chamfer > 0 ? os_chamfer(width = top_chamfer) : undef,
+        bottom = bot_chamfer > 0 ? os_chamfer(width = bot_chamfer) : undef
+    );
 }
 
 // Port Cutout Dimensions
 usb_width  = 11 + 2;  // Width of USB-C cable housing opening
 usb_height = 6.5 + 2;  // Height clearance for plug
 usb_wall_depth = lip;
-usb_x_pos  = 0;   // X-position matching your Pico's USB port offset
+usb_slot_radius = 2;
+
+usb_x_pos  = 0;
 usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port offset
 usb_y_pos  = pcb_length / 2; // Aligns with the back wall boundary
-slot_radius = 2;
-// Reusable Cutout Tool
-module usb_cutout() {
-    color("blue", alpha = 0.35)
+// 2D USB slot base profile
+module usb_2d_profile() {
+    offset(r = usb_slot_radius) {
+        square([usb_width - 2*usb_slot_radius, usb_height - 2*usb_slot_radius], center = true);
+    }
+}
+module usb_cutout(chamfer = 1.2) {
     translate([usb_x_pos, usb_y_pos + usb_wall_depth, usb_z_pos])
-        rotate([90, 0, 0])
-        linear_extrude(height = usb_wall_depth) {
-            offset(r = slot_radius) {
-                square([usb_width - 2*slot_radius, usb_height - 2*slot_radius], center = true);
+        rotate([90, 0, 0]) {
+            
+            // 1. Straight main tunnel (punches all the way through)
+            translate([0, 0, -0.1])
+                linear_extrude(height = usb_wall_depth + 0.2)
+                    usb_2d_profile();
+            
+            // 2. Entrance Funnel / Chamfer Flare (at the outer wall face)
+            if (chamfer > 0) {
+                translate([0, 0, -0.1])
+                    hull() {
+                        // Outer expanded entry
+                        linear_extrude(height = 0.01)
+                            offset(delta = chamfer)
+                                usb_2d_profile();
+                        
+                        // Taper down to normal slot size at depth = chamfer
+                        translate([0, 0, chamfer + 0.1])
+                            linear_extrude(height = 0.01)
+                                usb_2d_profile();
+                    }
             }
         }
 }
@@ -60,7 +100,7 @@ pico_width = 24;
 pico_height = 20;
 
 pico_x_pos = 0; 
-pico_y_pos = pcb_length / 2 -pico_length / 2;   
+pico_y_pos = pcb_length / 2 - pico_length / 2;   
 pico_z_pos = pcb_height / 2 + pico_height / 2; 
 module pico_cutout() {
         // color("blue", alpha = 0.35)
@@ -126,7 +166,7 @@ module shape_keycap_clearance() {
     square([19.15, 19.15], center = true);
 }
 
-// 3. Fightstick Plunger / Button Circle (e.g., 24.2mm or 30.2mm)
+// 3. Fightstick Plunger / Button Circle (e.g., 24.8mm or 30.2mm)
 module shape_fightstick_circle(r = 13.4) {
     circle(r = r);
 }
@@ -138,41 +178,68 @@ module shape_crosshair() {
     rotate([0, 0, -45]) square([30, 0.4], center = true);
 }
 
-// ==========================================
-// SWITCH CUTOUT GENERATOR
-// Pass 'indices' to cut specific keys, or leave 'undef' for all keys
-// ==========================================
-module generate_switch_cutouts(shape_type = "MX", cut_depth = 50, indices = undef) {
-    // If no indices specified, default to ALL keys (0 to 18)
-    active_indices = (indices == undef) ? [0 : len(switch_positions) - 1] : indices;
-
-    linear_extrude(height = cut_depth) {
-        for (i = active_indices) {
-            p = switch_positions[i];
-            translate([p[0], p[1]])
-                rotate([0, 0, p[2]]) {
-                    if (shape_type == "MX") {
-                        shape_mx_switch();
-                    } 
-                    else if (shape_type == "KEYCAP") {
-                        shape_keycap_clearance();
-                    } 
-                    else if (shape_type == "CIRCLE_24") {
-                        shape_fightstick_circle();
-                    }
-                    else if (shape_type == "CIRCLE_30") {
-                        shape_fightstick_circle(d = 30.2);
-                    }
-                }
-        }
+// Helper to select 2D shape based on type string
+module switch_2d_shape(shape_type) {
+    if (shape_type == "MX") {
+        shape_mx_switch();
+    } 
+    else if (shape_type == "KEYCAP") {
+        shape_keycap_clearance();
+    } 
+    else if (shape_type == "CIRCLE_24") {
+        shape_fightstick_circle();
+    }
+    else if (shape_type == "CIRCLE_30") {
+        shape_fightstick_circle(r = 15.1); // 30.2mm diameter
+    }
+    else if (shape_type == "CROSSHAIR") {
+        shape_crosshair();
     }
 }
 
-// Chicago Bolt Specs (e.g. M3 barrel with 8mm head)
-chicago_head_d  = 9.35 + 0.15;   // Head diameter (+ clearance)
-chicago_head_h  = 1.5 + 0.2;   // Head inset depth
-chicago_shaft_d = 5 + 0.3;   // Barrel/shaft diameter (+ clearance)
-chicago_shaft_h = 18;   // Barrel/shaft diameter (+ clearance)
+// ==========================================
+// SWITCH CUTOUT GENERATOR
+// ==========================================
+module generate_switch_cutouts(
+    shape_type = "MX", 
+    cut_depth  = 50, 
+    indices    = undef, 
+    chamfer    = 0
+) {
+    active_indices = (indices == undef) ? [0 : len(switch_positions) - 1] : indices;
+
+    for (i = active_indices) {
+        p = switch_positions[i];
+        translate([p[0], p[1], -0.1])
+            rotate([0, 0, p[2]]) {
+                
+                // 1. Straight main cutout (extrudes slightly past top/bottom)
+                linear_extrude(height = cut_depth + 0.2)
+                    switch_2d_shape(shape_type);
+                
+                // 2. Flared top chamfer cutter
+                if (chamfer > 0) {
+                    translate([0, 0, cut_depth + 0.1 - chamfer])
+                        hull() {
+                            linear_extrude(height = 0.01)
+                                switch_2d_shape(shape_type);
+                            
+                            translate([0, 0, chamfer + 0.2])
+                                linear_extrude(height = 0.01)
+                                    offset(delta = chamfer)
+                                        switch_2d_shape(shape_type);
+                        }
+                }
+            }
+    }
+}
+
+// Chicago Bolt Specs (e.g. M4 barrel with 9.5mm head)
+chicago_clearance = 0.2;
+chicago_head_d  = 9.5 + chicago_clearance;  // Head diameter (+ clearance)
+chicago_head_h  = 1.5 + chicago_clearance;  // Head height (+ clearance)
+chicago_shaft_d = 5 + chicago_clearance;    // Shaft diameter (+ clearance)
+chicago_shaft_h = 18;                       // Shaft height
 
 // Calculate total stack height relative to Z = 0 (bottom of bottom_plate)
 // Stack order from bottom to top: bottom + lip + mid + switch + top
@@ -199,18 +266,32 @@ module bolt_positions(include_inner = true) {
     }
 }
 
-module chicago_bolt_cutout() {
+module chicago_bolt_cutout(chamfer = 0.6) {
     translate([0, 0, -4.6])
     bolt_positions() {
         // 1. Bottom Head Counterbore (recessed into bottom_plate)
-        translate([0, 0, -chicago_head_h])
-            cylinder(d = chicago_head_d, h = chicago_head_h, $fn = 200);
+        translate([0, 0, -chicago_head_h - 0.1])
+            cylinder(d = chicago_head_d, h = chicago_head_h + 0.1, $fn = 200);
             
         // 2. Middle Shaft Clearance Hole (punches straight through everything)
-        cylinder(d = chicago_shaft_d, h = chicago_shaft_h, $fn = 200);
+        translate([0, 0, -0.1])
+            cylinder(d = chicago_shaft_d, h = chicago_shaft_h + 0.2, $fn = 200);
             
         // 3. Top Head Counterbore (recessed into top_plate)
-        translate([0, 0, chicago_shaft_h])
-            cylinder(d = chicago_head_d, h = chicago_head_h, $fn = 200);
+        translate([0, 0, chicago_shaft_h]) {
+            // Main recess hole
+            cylinder(d = chicago_head_d, h = chicago_head_h + 0.1, $fn = 200);
+            
+            // Top rim chamfer (flares cone outward at the top surface)
+            if (chamfer > 0) {
+                translate([0, 0, chicago_head_h - chamfer])
+                    cylinder(
+                        d1  = chicago_head_d, 
+                        d2  = chicago_head_d + (2 * chamfer), 
+                        h   = chamfer + 0.2, 
+                        $fn = 200
+                    );
+            }
+        }
     }
 }
