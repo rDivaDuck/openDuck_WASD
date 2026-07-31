@@ -7,7 +7,7 @@ use <mid_plate.scad>
 use <bottom_plate.scad>
 
 // Set to 0 for normal assembly, or increase (e.g., 15 or 20) to explode the view
-explode = 0; 
+explode = 0;  
 opacity = 0.65;
 
 // Base imported PCB
@@ -27,7 +27,7 @@ color(dark3_color(2, total_layers), opacity)
         mid_plate();
 color(dark3_color(3, total_layers), opacity) 
     translate([0, 0,  1 * explode]) 
-            switch_plate();
+        switch_plate();
 color(dark3_color(4, total_layers), opacity) 
     translate([0, 0,  2 * explode]) 
         top_plate();

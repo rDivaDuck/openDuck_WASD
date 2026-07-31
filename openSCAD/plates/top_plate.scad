@@ -1,4 +1,4 @@
-include <config.scad>
+include <../config.scad>
 
 // Show the KiCad PCB assembly in 3D
 color("green", alpha = 1)

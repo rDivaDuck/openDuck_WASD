@@ -1,5 +1,4 @@
-include <config.scad> // Pulls in box_x, box_y, etc.
-
+include <../config.scad>
 
 // Show the KiCad PCB assembly in 3D
 color("green", alpha = 1)

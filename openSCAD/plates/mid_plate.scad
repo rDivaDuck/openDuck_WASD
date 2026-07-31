@@ -1,4 +1,4 @@
-include <config.scad> // Pulls in box_x, box_y, etc.
+include <../config.scad>
 
 allowance = 0.3;
 

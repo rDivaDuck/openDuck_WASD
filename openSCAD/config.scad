@@ -1,23 +1,34 @@
 include <BOSL2/std.scad>
 include <BOSL2/rounding.scad>
 
-$fn=200;
+// ==================================================
+// GEOMETRY PARAMETERS
+// ==================================================
+$fn = 200;
+
+// PCB dimensions
 pcb_height = 1.6;
 pcb_length = 163;
 pcb_width = 275;
 
+// Case plate heights
 bottom_plate_height = 4.3;
 lip_plate_height = 2;
 mid_plate_height = pcb_height;
 switch_plate_height = 4.8;
 top_plate_height = 8.7;
 
+// Case dimensions
 corner_radius = 10;
 lip = 12;
 box_length = pcb_length + 2 * lip;
 box_width = pcb_width + 2 * lip;
 
-// Solid Case
+// ==================================================
+// CASE MODULES
+// ==================================================
+
+// Solid Case Module
 module case_shape(
     size        = [box_width, box_length],
     height      = top_plate_height,
@@ -33,7 +44,7 @@ module case_shape(
     );
 }
 
-// Hollow Frame
+// Hollow Frame Module
 module hollow_case_shape(
     outer_size  = [box_width, box_length],
     inner_size  = [pcb_width - inner_lip, pcb_length - inner_lip],
@@ -53,7 +64,11 @@ module hollow_case_shape(
     );
 }
 
-// Port Cutout Dimensions
+// ==================================================
+// USB CUTOUT PARAMETERS AND MODULES
+// ==================================================
+
+// USB port cutout dimensions
 usb_width  = 11 + 2;  // Width of USB-C cable housing opening
 usb_height = 6.5 + 2;  // Height clearance for plug
 usb_wall_depth = lip;
@@ -62,12 +77,15 @@ usb_slot_radius = 2;
 usb_x_pos  = 0;
 usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port offset
 usb_y_pos  = pcb_length / 2; // Aligns with the back wall boundary
+
 // 2D USB slot base profile
 module usb_2d_profile() {
     offset(r = usb_slot_radius) {
         square([usb_width - 2*usb_slot_radius, usb_height - 2*usb_slot_radius], center = true);
     }
 }
+
+// USB cutout module with chamfer option
 module usb_cutout(chamfer = 1.2) {
     translate([usb_x_pos, usb_y_pos + usb_wall_depth, usb_z_pos])
         rotate([90, 0, 0]) {
@@ -95,6 +113,11 @@ module usb_cutout(chamfer = 1.2) {
         }
 }
 
+// ==================================================
+// PICO CUTOUT PARAMETERS AND MODULE
+// ==================================================
+
+// Pico dimensions
 pico_length = 53;
 pico_width = 24;
 pico_height = 20;
@@ -102,16 +125,20 @@ pico_height = 20;
 pico_x_pos = 0; 
 pico_y_pos = pcb_length / 2 - pico_length / 2;   
 pico_z_pos = pcb_height / 2 + pico_height / 2; 
+
+// Pico cutout module
 module pico_cutout() {
         // color("blue", alpha = 0.35)
         translate([pico_x_pos, pico_y_pos, pico_z_pos])
         cube([pico_width, pico_length, pico_height], center = true);
 }
 
-// ==========================================
-// CENTRAL SWITCH MATRIX [X, Y, Rotation]
+// ==================================================
+// SWITCH POSITIONS AND INDEX GROUPS
+// ==================================================
+
+// Central switch matrix [X, Y, Rotation]
 // Centered relative to Board Edge.Cuts (From KiCad .pos)
-// ==========================================
 switch_positions = [
     // Top Row (LS, RS, GUIDE, BACK, START, TURBO)
     [-41.760,   61.975,  180.0], // MX1
@@ -142,9 +169,7 @@ switch_positions = [
     [ 38.500,  -54.500, -145.0]  // MX19
 ];
 
-// ==========================================
-// KEY INDEX GROUPS (0-based matching switch_positions)
-// ==========================================
+// Switch index groups (0-based matching switch_positions)
 idx_top_row    = [0:5];   // MX1 - MX6
 idx_wasd       = [6:9];   // MX7 - MX10
 idx_fightstick = [10:17]; // MX11 - MX18
@@ -152,6 +177,10 @@ idx_thumb      = [18];    // MX19
 
 idx_mx_keys     = [0:9];   // Top Row + WASD
 idx_circle_keys = [10:18]; // Fightstick + Thumb
+
+// ==================================================
+// SWITCH SHAPE MODULES
+// ==================================================
 
 // 1. Standard MX Switch Cutout (14mm x 14mm + plate snap clips)
 module shape_mx_switch() {
@@ -197,9 +226,11 @@ module switch_2d_shape(shape_type) {
     }
 }
 
-// ==========================================
+// ==================================================
 // SWITCH CUTOUT GENERATOR
-// ==========================================
+// ==================================================
+
+// Switch cutout generator module
 module generate_switch_cutouts(
     shape_type = "MX", 
     cut_depth  = 50, 
@@ -234,6 +265,10 @@ module generate_switch_cutouts(
     }
 }
 
+// ==================================================
+// BOLT CUTOUT PARAMETERS AND MODULES
+// ==================================================
+
 // Chicago Bolt Specs (e.g. M4 barrel with 9.5mm head)
 chicago_clearance = 0.2;
 chicago_head_d  = 9.5 + chicago_clearance;  // Head diameter (+ clearance)
@@ -253,6 +288,7 @@ hole_offset_y  = (box_length / 2) - hole_inset;
 // Distance from center (0,0) to the inner seam bolt holes
 inner_offset_x = 18; 
 
+// Bolt positions module for generating multiple bolt locations
 module bolt_positions(include_inner = true) {
     // Collect all X coordinates needed
     x_coords = include_inner 
@@ -266,6 +302,7 @@ module bolt_positions(include_inner = true) {
     }
 }
 
+// Chicago bolt cutout module
 module chicago_bolt_cutout(chamfer = 0.6) {
     translate([0, 0, -4.6])
     bolt_positions() {
@@ -292,6 +329,44 @@ module chicago_bolt_cutout(chamfer = 0.6) {
                         $fn = 200
                     );
             }
+        }
+    }
+}
+
+
+// --- DOVETAIL CUTTER MODULE ---
+module dovetail_pin(w_top = 14, w_bot = 8, depth = 12, height = 60, clearance = 0) {
+    // clearance expands the male key slightly for printable tolerance
+    wt = w_top + clearance * 2;
+    wb = w_bot + clearance * 2;
+    d  = depth + clearance;
+
+    translate([0, 0, -height / 2])
+    linear_extrude(height = height)
+    polygon(points = [
+        [0, -wb / 2],
+        [0,  wb / 2],
+        [d,  wt / 2],
+        [d, -wt / 2]
+    ]);
+}
+
+// Generates multiple pins along the Y axis seam
+module dovetail_y_cutter(
+    length = 200,      // Total Y length of the casing seam
+    count = 3,         // Number of dovetails
+    w_top = 14, 
+    w_bot = 8, 
+    depth = 12, 
+    height = 60, 
+    clearance = 0
+) {
+    spacing = length / (count + 1);
+    
+    translate([0, -length / 2, 0]) {
+        for (i = [1 : count]) {
+            translate([0, i * spacing, 0])
+            dovetail_pin(w_top, w_bot, depth, height, clearance);
         }
     }
 }
