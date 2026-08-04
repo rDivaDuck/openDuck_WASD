@@ -12,7 +12,7 @@ pcb_length = 163;
 pcb_width = 275;
 
 // Case plate heights
-bottom_plate_height = 4.3;
+bottom_plate_height = 5.0;
 lip_plate_height = 2;
 mid_plate_height = pcb_height;
 switch_plate_height = 4.8;
@@ -79,35 +79,62 @@ usb_z_pos  = pcb_height / 2 + 3;   // Z-position matching your Pico's USB port o
 usb_y_pos  = pcb_length / 2; // Aligns with the back wall boundary
 
 // 2D USB slot base profile
-module usb_2d_profile() {
-    offset(r = usb_slot_radius) {
-        square([usb_width - 2*usb_slot_radius, usb_height - 2*usb_slot_radius], center = true);
+module usb_2d_profile(extra_offset = 0) {
+    offset(r = usb_slot_radius + extra_offset) {
+        square([
+            max(0.1, usb_width - 2*usb_slot_radius), 
+            max(0.1, usb_height - 2*usb_slot_radius)
+        ], center = true);
     }
 }
 
-// USB cutout module with chamfer option
-module usb_cutout(chamfer = 1.2) {
-    translate([usb_x_pos, usb_y_pos + usb_wall_depth, usb_z_pos])
+module usb_cutout(chamfer = 1.2, depth = usb_wall_depth, end_radius = 2.0, steps = 12) {
+    translate([usb_x_pos, usb_y_pos + depth, usb_z_pos])
         rotate([90, 0, 0]) {
             
-            // 1. Straight main tunnel (punches all the way through)
+            // 1. Straight tunnel (stops short to leave room for the curve)
             translate([0, 0, -0.1])
-                linear_extrude(height = usb_wall_depth + 0.2)
+                linear_extrude(height = depth + 0.1)
                     usb_2d_profile();
             
-            // 2. Entrance Funnel / Chamfer Flare (at the outer wall face)
+            // 2. Entrance Chamfer
             if (chamfer > 0) {
                 translate([0, 0, -0.1])
                     hull() {
-                        // Outer expanded entry
                         linear_extrude(height = 0.01)
-                            offset(delta = chamfer)
-                                usb_2d_profile();
+                            usb_2d_profile(extra_offset = chamfer);
                         
-                        // Taper down to normal slot size at depth = chamfer
                         translate([0, 0, chamfer + 0.1])
                             linear_extrude(height = 0.01)
                                 usb_2d_profile();
+                    }
+            }
+            
+            // 3. Smooth Curved Arc Exit (Smooth circular sweep)
+            if (end_radius > 0) {
+                translate([0, 0, depth])
+                    for (i = [0 : steps - 1]) {
+                        // Angle from 0 deg (tangent to wall) to 90 deg (tapered closed)
+                        a1 = (i / steps) * 90;
+                        a2 = ((i + 1) / steps) * 90;
+                        
+                        // Calculate curved profile offsets along a quarter-circle arc
+                        z1 = end_radius * sin(a1);
+                        z2 = end_radius * sin(a2);
+                        
+                        // Calculate inward taper radius along the arc
+                        r_offset1 = -end_radius * (1 - cos(a1));
+                        r_offset2 = -end_radius * (1 - cos(a2));
+                        
+                        hull() {
+                            translate([0, 0, z1])
+                                linear_extrude(height = 0.01)
+                                    usb_2d_profile(extra_offset = r_offset1);
+                                
+                            translate([0, 0, z2])
+                                linear_extrude(height = 0.01)
+                                    usb_2d_profile(extra_offset = r_offset2);
+                        }
                     }
             }
         }
@@ -270,7 +297,7 @@ module generate_switch_cutouts(
 // ==================================================
 
 // Chicago Bolt Specs (e.g. M4 barrel with 9.5mm head)
-chicago_clearance = 0.2;
+chicago_clearance = 0.4;
 chicago_head_d  = 9.5 + chicago_clearance;  // Head diameter (+ clearance)
 chicago_head_h  = 1.5 + chicago_clearance;  // Head height (+ clearance)
 chicago_shaft_d = 5 + chicago_clearance;    // Shaft diameter (+ clearance)
@@ -302,71 +329,38 @@ module bolt_positions(include_inner = true) {
     }
 }
 
-// Chicago bolt cutout module
-module chicago_bolt_cutout(chamfer = 0.6) {
-    translate([0, 0, -4.6])
-    bolt_positions() {
-        // 1. Bottom Head Counterbore (recessed into bottom_plate)
-        translate([0, 0, -chicago_head_h - 0.1])
-            cylinder(d = chicago_head_d, h = chicago_head_h + 0.1, $fn = 200);
-            
-        // 2. Middle Shaft Clearance Hole (punches straight through everything)
-        translate([0, 0, -0.1])
-            cylinder(d = chicago_shaft_d, h = chicago_shaft_h + 0.2, $fn = 200);
-            
-        // 3. Top Head Counterbore (recessed into top_plate)
-        translate([0, 0, chicago_shaft_h]) {
-            // Main recess hole
-            cylinder(d = chicago_head_d, h = chicago_head_h + 0.1, $fn = 200);
-            
-            // Top rim chamfer (flares cone outward at the top surface)
-            if (chamfer > 0) {
-                translate([0, 0, chicago_head_h - chamfer])
-                    cylinder(
-                        d1  = chicago_head_d, 
-                        d2  = chicago_head_d + (2 * chamfer), 
-                        h   = chamfer + 0.2, 
-                        $fn = 200
-                    );
-            }
+// 1. Standalone single Chicago bolt cutout geometry (centered at Z=0 shaft base)
+module chicago_bolt_geometry(chamfer = 0.6) {
+    // Bottom Head Counterbore (recessed into bottom_plate)
+    translate([0, 0, -chicago_head_h - 0.1])
+        cylinder(d = chicago_head_d, h = chicago_head_h + 0.1, $fn = 200);
+        
+    // Middle Shaft Clearance Hole (punches straight through everything)
+    translate([0, 0, -0.1])
+        cylinder(d = chicago_shaft_d, h = chicago_shaft_h + 0.2, $fn = 200);
+        
+    // Top Head Counterbore (recessed into top_plate)
+    translate([0, 0, chicago_shaft_h]) {
+        // Main recess hole
+        cylinder(d = chicago_head_d, h = chicago_head_h + 0.1, $fn = 200);
+        
+        // Top rim chamfer (flares cone outward at the top surface)
+        if (chamfer > 0) {
+            translate([0, 0, chicago_head_h - chamfer])
+                cylinder(
+                    d1  = chicago_head_d, 
+                    d2  = chicago_head_d + (2 * chamfer), 
+                    h   = chamfer + 0.2, 
+                    $fn = 200
+                );
         }
     }
 }
 
-
-// --- DOVETAIL CUTTER MODULE ---
-module dovetail_pin(w_top = 14, w_bot = 8, depth = 12, height = 60, clearance = 0) {
-    // clearance expands the male key slightly for printable tolerance
-    wt = w_top + clearance * 2;
-    wb = w_bot + clearance * 2;
-    d  = depth + clearance;
-
-    translate([0, 0, -height / 2])
-    linear_extrude(height = height)
-    polygon(points = [
-        [0, -wb / 2],
-        [0,  wb / 2],
-        [d,  wt / 2],
-        [d, -wt / 2]
-    ]);
-}
-
-// Generates multiple pins along the Y axis seam
-module dovetail_y_cutter(
-    length = 200,      // Total Y length of the casing seam
-    count = 3,         // Number of dovetails
-    w_top = 14, 
-    w_bot = 8, 
-    depth = 12, 
-    height = 60, 
-    clearance = 0
-) {
-    spacing = length / (count + 1);
-    
-    translate([0, -length / 2, 0]) {
-        for (i = [1 : count]) {
-            translate([0, i * spacing, 0])
-            dovetail_pin(w_top, w_bot, depth, height, clearance);
-        }
+// 2. Layout module applying the extracted bolt across all positions
+module chicago_bolt_cutout(chamfer = 0.6) {
+    translate([0, 0, -5])
+    bolt_positions() {
+        chicago_bolt_geometry(chamfer = chamfer);
     }
 }

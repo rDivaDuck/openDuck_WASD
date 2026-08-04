@@ -1,13 +1,13 @@
 include <config.scad> // Pulls in box_x, box_y, etc.
 
-use <top_plate.scad>
-use <lip_plate.scad>
-use <switch_plate.scad>
-use <mid_plate.scad>
-use <bottom_plate.scad>
+use <plates/top_plate.scad>
+use <plates/lip_plate.scad>
+use <plates/switch_plate.scad>
+use <plates/mid_plate.scad>
+use <plates/bottom_plate.scad>
 
 // Set to 0 for normal assembly, or increase (e.g., 15 or 20) to explode the view
-explode = 0;  
+explode = 40;  
 opacity = 0.65;
 
 // Base imported PCB

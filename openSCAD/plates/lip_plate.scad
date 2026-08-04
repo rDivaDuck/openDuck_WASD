@@ -4,7 +4,8 @@ inner_lip = 10;
 
 // Show the KiCad PCB assembly in 3D
 color("green", alpha = 1)
-import("open_duck_WASD.stl", convexity = 10);
+import("../open_duck_WASD.stl", convexity = 10);
+
 
 lip_plate();
 module lip_plate() {

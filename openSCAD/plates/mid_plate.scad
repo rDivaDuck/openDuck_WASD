@@ -4,7 +4,7 @@ allowance = 0.3;
 
 // Show the KiCad PCB assembly in 3D
 color("green", alpha = 1)
-import("open_duck_WASD.stl", convexity = 10);
+import("../open_duck_WASD.stl", convexity = 10);
 
 mid_plate();
 module mid_plate() {
