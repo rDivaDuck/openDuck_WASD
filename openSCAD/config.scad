@@ -20,7 +20,7 @@ top_plate_height = 8.7;
 
 // Case dimensions
 corner_radius = 10;
-lip = 12;
+lip = 16;
 box_length = pcb_length + 2 * lip;
 box_width = pcb_width + 2 * lip;
 
@@ -308,7 +308,7 @@ chicago_shaft_h = 18;                       // Shaft height
 total_stack_h = bottom_plate_height + lip_plate_height + mid_plate_height + switch_plate_height + top_plate_height;
 
 // Bolt Hole Layout Positions
-hole_inset = 8;
+hole_inset = lip / 2;
 hole_offset_x  = (box_width / 2) - hole_inset;
 hole_offset_y  = (box_length / 2) - hole_inset;
 

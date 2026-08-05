@@ -35,7 +35,7 @@ module right_side_cutter(c_clearance = 0) {
             dovetail_pin(w_top=25, w_bot=13.6, depth=depth, height=60, clearance=c_clearance);
 
         // 4. One dovetail above the top row (Top edge)
-        translate([split_x, box_length/2 - 12, 0])
+        translate([split_x, box_length/2 - lip, 0])
             rotate([0, 0, 180])
             dovetail_pin(w_top=16, w_bot=8.8, depth=depth, height=60, clearance=c_clearance);
     }
